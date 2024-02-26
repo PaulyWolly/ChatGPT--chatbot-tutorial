@@ -15,6 +15,10 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 // into a Promise (a single future value), making it easier to use in async/await syntax.
 import { lastValueFrom } from 'rxjs';
 
+// Define the ApiResponse type based on the expected structure
+interface ApiResponse {
+  choices: { message: { content: string } }[];
+}
 interface ChatMessage {
   text: string;
   user: boolean; // true for user messages, false for bot messages
@@ -102,4 +106,66 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
       return '';
     }
   }
+
+  async sendMessage() {
+    if (this.userInput.trim() === '') return;
+
+    this.messages.push({ text: this.userInput, user: true });
+
+    const userMessage = this.userInput;
+    const apiKey = await this.getApiKey(); // Retrieve the API key from the backend
+
+    if (!apiKey) {
+      this.handleError('Failed to retrieve API key.');
+      return;
+    }
+
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    });
+
+    const conversation = [
+      { role: 'system', content: 'You are personable chatbot.' },
+      { role: 'user', content: userMessage },
+    ];
+
+    this.isLoading = true;
+    this.errorOccurred = false;
+    this.customErrorMessage = '';
+
+    try {
+      const response = await this.http.post(this.apiUrl, { model: 'gpt-4', messages: conversation }, { headers }).toPromise();
+
+      if (response && 'choices' in response) {
+        const apiResponse: ApiResponse = response as ApiResponse;
+        const botResponse = apiResponse.choices[0].message.content.trim();
+
+        // Push the bot's response to the messages array
+        this.messages.push({ text: botResponse, user: false });
+
+        // Format and set the response
+        this.formattedResponse = this.formatCodeBlock(botResponse);
+      } else {
+        this.handleError("Invalid or empty response from the API.");
+      }
+    } catch (error) {
+      this.handleError("I'm experiencing technical difficulties at the moment. Please try again later.");
+      console.error(error);
+    } finally {
+      this.isLoading = false;
+    }
+    this.userInput = ''; // Clear the input field
+  }
+
+  handleError(errorMessage: string): void {
+    this.customErrorMessage = errorMessage;
+    this.errorOccurred = true; // Set error flag to true
+  }
+
+  formatCodeBlock(code: string): SafeHtml {
+    const formattedCode = this.sanitizer.bypassSecurityTrustHtml(`<pre><code>${code}</code></pre>`);
+    return formattedCode;
+  }
 }
+

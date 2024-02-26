@@ -15,6 +15,11 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 // into a Promise (a single future value), making it easier to use in async/await syntax.
 import { lastValueFrom } from 'rxjs';
 
+interface ChatMessage {
+  text: string;
+  user: boolean; // true for user messages, false for bot messages
+}
+
 @Component({
   selector: 'app-chatbot',
   templateUrl: './chatbot.component.html',
@@ -62,24 +67,39 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     this.messages.push({ text: "Hi, I'm Fred! How can I help you today?", user: false });
   }
 
-// ngAfterViewChecked runs after Angular updates the view.
-ngAfterViewChecked() {
-    // Calls scrollToBottom to scroll the chat to the latest message.
-    this.scrollToBottom();
-}
+  // ngAfterViewChecked runs after Angular updates the view.
+  ngAfterViewChecked() {
+      // Calls scrollToBottom to scroll the chat to the latest message.
+      this.scrollToBottom();
+  }
 
-// Scrolls the message container to show the most recent chat message.
-private scrollToBottom(): void {
+  // Scrolls the message container to show the most recent chat message.
+  private scrollToBottom(): void {
+      try {
+          const element = this.messagesContainer.nativeElement;
+          element.scrollTop = element.scrollHeight; // Scroll to the bottom of the chat.
+      } catch (err) { /* Error handling is ignored for simplicity. */ }
+  }
+
+  // Adjusts the height of the text input to fit the content as the user types.
+  autoGrow(event: any): void {
+      const textArea = event.target;
+      textArea.style.height = 'auto'; // Reset height.
+      textArea.style.height = textArea.scrollHeight + 'px'; // Expand to fit content.
+  }
+
+  async getApiKey(): Promise<string> {
     try {
-        const element = this.messagesContainer.nativeElement;
-        element.scrollTop = element.scrollHeight; // Scroll to the bottom of the chat.
-    } catch (err) { /* Error handling is ignored for simplicity. */ }
-}
+      const headers = new HttpHeaders({
+        Authorization: `Bearer ${environment.authToken}`
+      });
 
-// Adjusts the height of the text input to fit the content as the user types.
-autoGrow(event: any): void {
-    const textArea = event.target;
-    textArea.style.height = 'auto'; // Reset height.
-    textArea.style.height = textArea.scrollHeight + 'px'; // Expand to fit content.
-}
+      const response = this.http.get<{ apiKey: string }>('/api/getApiKey', { headers });
+      const data = await lastValueFrom(response);
+      return data.apiKey || '';
+    } catch (error) {
+      console.error('Error fetching API key:', error);
+      return '';
+    }
+  }
 }

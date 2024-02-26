@@ -39,7 +39,7 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
   apiUrl = 'https://api.openai.com/v1/chat/completions';
 
   // URL to your backend server for retrieving the API key.
-  backendUrl = '[your vercel deployment link]/api/getApiKey.js';
+  backendUrl = 'chat-gpt-chatbot-tutorial-k6to.vercel.app/api/getApiKey.js';
 
   // Variables to track the loading state and any errors that occur.
   loading: boolean = false;
